@@ -1,15 +1,12 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-
 #include <vector>
 #include <string>
 #include <map>
 #include <list>
 
-
 using namespace std;
-
 string toBinary (int a){
     if (a == 0){
         return "0";
@@ -21,8 +18,8 @@ string toBinary (int a){
     }
     return res;
 }
-
-class Symbol {
+// for tape symbols
+class Symbol{
 public:
     char a1, a2, a3;
     Symbol(char a1,char a2,char a3){
@@ -51,7 +48,6 @@ public:
     bool operator <= (const Symbol &b) const{
         return ! (this->operator >( b));
     }
-
     string toString(){
         return string("") + a1 + ',' + a2 + ',' + a3  ;
     }
@@ -68,10 +64,8 @@ public:
     int q , sh;
     //symbol on tape
     Symbol s;
-    Output(){
-
-    }
-    bool isNull (){
+    Output(){}
+    bool isNull(){
         return sh == 0;
     }
 
@@ -79,20 +73,17 @@ public:
         this->q = a;
         this->s = b;
         this->sh = c;
-
     }
-
 };
 
 class Automata{
 private:
-    const int startState = 0;
-    const int endState = 14;
+    const int startState = 5;
     const int acceptState = 1000;
     const int rejectState = 2000;
 
     const array<char, 2> alphabet = array<char,2> {'0', '1'};
-    const array<char, 3> gamma = array<char,3> {'0', '1', 'B'};
+    const array<char, 2> gamma = array<char,2> {'0', '1'};
 
     vector <Symbol> lenta = vector<Symbol>();
     map <Input, Output> transitions;
@@ -123,7 +114,7 @@ private:
         }
         lenta[i] = ch ;
     }
-
+    //need when read transitions from file
     Symbol getSymbol(stringstream &iss){
         string token;
         getline(iss, token, ' ');
@@ -137,7 +128,6 @@ private:
 
         return Symbol(a1, a2, a3);
     }
-
     void readTransition(string line){
         stringstream iss;
         string token;
@@ -149,7 +139,6 @@ private:
 
         getline(iss, token, ' ');
         int q2 = atoi(token.c_str());
-
         Symbol b = getSymbol(iss);
 
         getline(iss, token);
@@ -161,13 +150,12 @@ private:
         Output out_state = Output (q2, b, shift);
         transitions[in_state] = out_state;
     }
-
     void readTransitions(){
         ifstream file ("transitions.txt");
         if (file.is_open())
           {
             string line;
-            while ( getline(file, line) )
+            while (getline(file, line))
                {
                   readTransition(line);
                }
@@ -175,14 +163,12 @@ private:
           }
           else throw "Unable to open read file";
     }
-
     bool isReject (int state){
         return state == rejectState;
     }
     bool isAccept(int state){
         return state == acceptState;
     }
-
     // need for execute
     pair <int,int> step(pair <int,int> state_index){
         int state = state_index.first;
@@ -214,35 +200,40 @@ private:
         outfile << startTerminal << "->"<< outTerminal1 << outTerminal2 << std::endl;
         rules[startTerminal] = pair<string,string>(outTerminal1, outTerminal2);
     }
-
     string stateToString (int n){
         return string("q") + to_string(n);
     }
-
     void generateGrammar (){
         ofstream outfile ("grammar.txt");
 
         string startTerminal, outTerminal1, outTerminal2;
-        // (4.1) S -> V[c, q0, B, B, a] T
+        // S -> 10
+        registerGrammarRule(outfile,"S", "10", "");
+        //S -> 11
+        registerGrammarRule(outfile,"S", "11", "");
+        // (4.1) S -> V[c, q0, 0, 0, a] T
         for (char elem : alphabet){
              startTerminal = "S";
-             outTerminal1 =  string("V(c,")+ stateToString(startState) + "," + "B,B," + elem + ")";
+             outTerminal1 =  string("V(c,")+ stateToString(startState) + "," + "0,0," + elem + ")";
              outTerminal2 = "T";
              registerGrammarRule(outfile,startTerminal, outTerminal1, outTerminal2);
         }
 
 
         for (char elem : alphabet){
-            //(4.2) T → V(B, B, a)T
+            //(4.2) T → V(0, 0, a)T
             startTerminal = "T";
-            outTerminal1 =  string("V(") +"B,B," + elem +")";
+            outTerminal1 =  string("V(") +"0,0," + elem +")";
             outTerminal2 = "T";
             registerGrammarRule(outfile,startTerminal, outTerminal1, outTerminal2);
 
-            //(4.3) T -> V (B,B,a, $)
-            outTerminal1 =  string("V(")+ elem + ",B,B,$)";
-            outTerminal2 = "";
-            registerGrammarRule(outfile,startTerminal, outTerminal1, outTerminal2);
+            //(4.3) T -> V(1, 0, a)V(0,0,b, $)
+            for (char b : alphabet){
+                outTerminal1 =  string("V(") + "1,0,"+ elem+ ")";
+                outTerminal2 = string("V(") + "0,0,"+ elem+ ",$)";
+                registerGrammarRule(outfile,startTerminal, outTerminal1, outTerminal2);
+            }
+
         }
         //for transitions
         for(auto iterator = transitions.begin(); iterator != transitions.end(); iterator++) {
@@ -288,7 +279,6 @@ private:
 
                 }
             }
-
             char a = x.a1; // == y.a1;
                 // (5.3) (6.1) (6.3) (7.1) δ(q, X ) = ( p, Y, R)
             if ((shift == 1) && (x.a1 != 'c') && (x.a1 != '$')){
@@ -368,7 +358,6 @@ private:
         }
     }
     // final state
-
     for (char a : alphabet){
         for (char x2 : gamma){
             for (char x3 : gamma){
@@ -406,7 +395,6 @@ private:
             }
         }
     }
-
     // recovery of input
     for (char a : alphabet){
         for (char x2 : gamma){
@@ -443,80 +431,54 @@ private:
     }
     outfile.close();
 }
-
-public:
-    Automata(){
-        this->readTransitions();
-        this->generateGrammar();
-    }
-    ~Automata(){
-
-    }
-    void execute(string word, bool isOut){
-        for (int i = 0; i < word.length(); ++i ){
-            Symbol s = Symbol(word[i], 'B', 'B');
-            lenta.push_back(s);
-        }
-        pair <int, int> prev_state;
-        pair <int, int> state_index = pair <int, int> (startState, 0);
-        if (isOut){
-            cout << state_index.first << endl;
-        }
-
-        while (true){
-            prev_state = state_index;
-            state_index = step(state_index);
-            if (isOut){
-                cout << state_index.first << endl;
-            }
-
-            if (isAccept(state_index.first)){
-                cout << "accept" << endl;
-                return;
-            }
-            if (isReject(state_index.first)){
-                cout << "reject" << endl;
-                return;
-            }
-        }
-    }
-
+    //needed for generate grammar output
     void showCurrOut(ofstream &outfile, list<string> &currOut){
         for(std::list<string>::iterator curr2 = currOut.begin(); curr2 != currOut.end(); curr2++){
             outfile << *curr2 ;
-
          }
          outfile << endl<< endl;
     }
-
-    void startPreparation(ofstream &outfile, list<string> &currOut, int number){
+    bool startPreparation(ofstream &outfile, list<string> &currOut, int number){
+        if (number <= 1){
+            return false;
+        }
+        if (number == 2){
+            outfile << "S->10" << endl;
+            return false;
+        }
+        if (number == 3){
+            outfile << "S->11" << endl;
+            return false;
+        }
         string str = toBinary(number);
 
-        // (4.1) S -> [c, q0, 'B', 'B', a] T
+        // (4.1) S -> [c, q0, '0', '0', a] T
         string startTerminal = "S";
-        string outTerminal1 =  string("V(c,")+ stateToString(startState) +",B,B," + str[0] + ")";
+        string outTerminal1 =  string("V(c,")+ stateToString(startState) +",0,0," + str[0] + ")";
         string outTerminal2 = "T";
         outfile << "S" << endl  << endl;
         outfile << startTerminal << "->" <<  outTerminal1 <<  outTerminal2 << endl;
         currOut.push_back(outTerminal1);
         showCurrOut(outfile, currOut);
-
-        for (int i = 1; i < str.size(); ++i){
-            //(4.2) T → V(B, B, a)T
+        for (int i = 1; i < str.size() - 2; ++i){
+            //(4.2) T → V(0, 0, a)T
             string startTerminal = "T";
-            string outTerminal1 =  string("V(") +"B,B,"+ str[i] + ")";
+            string outTerminal1 =  string("V(") +"0,0,"+ str[i] + ")";
             string outTerminal2 = "T";
-            if (i == str.size() -1){
-                //(4.3) T -> V (a,a, $)
-                outTerminal1 =  string("V(") + "B,B,"+ str[i] + ",$)";
-                outTerminal2 = "";
-            }
             outfile << startTerminal << "->" <<  outTerminal1 <<  outTerminal2 << endl;
             currOut.push_back(outTerminal1);
             showCurrOut(outfile, currOut);
         }
+        //(4.3) T -> V(1, 0, a)V(0,0,b, $)
+        int i = str.size() -2;
+        outTerminal1 =  string("V(") + "1,0,"+ str[i] + ")";
+        outTerminal2 = string("V(") + "0,0,"+ str[i + 1] + ",$)";
+        outfile << startTerminal << "->" <<  outTerminal1 <<  outTerminal2 << endl;
+        currOut.push_back(outTerminal1);
+        currOut.push_back(outTerminal2);
+        showCurrOut(outfile, currOut);
+        return true;
     }
-
     bool isAccepted (list<string> &currOut){
         for(std::list<string>::iterator curr2 = currOut.begin(); curr2 != currOut.end(); curr2++){
             if ((*curr2).size() != 1){
@@ -525,7 +487,6 @@ public:
         return true;
         }
     }
-
     bool stepGrammar(ofstream &outfile, list<string> &currOut){
         string left;
         std::list<string>::iterator next;
@@ -559,43 +520,64 @@ public:
                 if (right.second != ""){
                      currOut.insert(nnext, right.second );
                 }
-
                 return true;
             }
         }
         return false;
     }
+public:
+    Automata(){
+        this->readTransitions();
+        this->generateGrammar();
+    }
+    void execute(string word, bool isOut){
+        for (int i = 0; i < word.length(); ++i ){
+            Symbol s = Symbol(word[i], 'B', 'B');
+            lenta.push_back(s);
+        }
+        pair <int, int> prev_state;
+        pair <int, int> state_index = pair <int, int> (startState, 0);
+        if (isOut){
+            cout << state_index.first << endl;
+        }
+        while (true){
+            prev_state = state_index;
+            state_index = step(state_index);
+            if (isOut){
+                cout << state_index.first << endl;
+            }
 
+            if (isAccept(state_index.first)){
+                cout << "accept" << endl;
+                return;
+            }
+            if (isReject(state_index.first)){
+                cout << "reject" << endl;
+                return;
+            }
+        }
+    }
     void generateGrammarOutput (int number){
         ofstream outfile (string("grammar output ") + to_string(number)+ ".txt");
         list<string> currOut = list<string>();
-
-        startPreparation(outfile, currOut, number);
-
-
+        bool isContinue = startPreparation(outfile, currOut, number);
+        if (!isContinue){
+            return;
+        }
         while (stepGrammar(outfile,currOut)){
             showCurrOut(outfile,currOut);
-
         }
-
         outfile.close();
-        /*if (!isAccepted(currOut)){
+        if (!isAccepted(currOut)){
             ofstream outfile1 (string("grammar output ") + to_string(number)+ ".txt");
             outfile1.close();
-        }*/
-
+        }
     }
-
 };
 
-
 int main(){
-
-    int n = 3;
     Automata automata = Automata();
-    /*string number = toBinary (n);
-    cout << number << endl;
-    automata.execute(number, true);*/
-    automata.generateGrammarOutput(3);//179425027
-
+    automata.generateGrammarOutput(53);
+    automata.generateGrammarOutput(263);
+    automata.generateGrammarOutput(121);
 }
